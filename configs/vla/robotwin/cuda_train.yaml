@@ -1,0 +1,100 @@
+# CUDA LoRA / full-SFT base config for RoboTwin post-training.
+# Prefer launching via: bash scripts/train_robotwin_cuda.sh --mode lora|full
+#
+# Fill model_path / tokenizer_path / train_path before running, or override them
+# through the launcher script environment variables.
+
+model:
+  model_path: /path/to/lingbot-vla-v2-6b
+  tokenizer_path: /path/to/Qwen3-VL-4B-Instruct
+  post_training: true
+  adanorm_time: true
+  config_key: LingbotVLAV2Config
+  moe_implementation: fused
+  attn_implementation: flash_attention_2
+  vit_attn_implementation: flash_attention_2
+
+data:
+  datasets_type: vla
+  data_name: multi
+  train_path: assets/training_data/robotwin.txt
+  robot_config_root: ./configs/robot_configs
+  joints:
+    - arm.position: 14
+    - end.position: 14
+    - effector.position: 2
+  cameras:
+    - camera_top
+    - camera_wrist_left
+    - camera_wrist_right
+  norm_type:
+    - arm.position: bounds_99_woclip
+    - end.position: bounds_99_woclip
+    - effector.position: bounds_99_woclip
+  norm_stats_file: assets/norm_stats/robotwin.json
+  num_workers: 4
+  # LoRA default path disables future-image distillation; full+teacher can override.
+  use_future_image: false
+
+train:
+  output_dir: output/robotwin_cuda
+  moe_monitor_interval: 1000
+  enable_gradient_checkpointing: true
+  precompute_grid_thw: false
+  vlm_causal: true
+  vlm_fsdp: true
+  attention_implementation: flex_cached
+  use_moe: true
+  token_moe_layers: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35]
+  token_num_experts: 32
+  token_top_k: 4
+  token_moe_intermediate_size: 512
+  token_shared_intermediate_size: 704
+  bias_update_speed: 0
+  sequence_wise_mode: "per_sequence"
+  sequence_wise_loss_coeff: 1e-3
+  router_z_loss_coeff: 1e-4
+  router_activation: "sigmoid"
+  routed_scaling_factor: 4.0
+  use_shared_expert_gate: false
+  use_moe_expert_lr: true
+  loss_type: L1_fm
+  data_parallel_mode: fsdp2
+  enable_full_shard: true
+  module_fsdp_enable: true
+  use_compile: false
+  use_wandb: false
+  rmpad: false
+  rmpad_with_pos_ids: false
+  ulysses_parallel_size: 1
+  freeze_vision_encoder: false
+  train_expert_only: false
+  tokenizer_max_length: 72
+  action_dim: 55
+  max_action_dim: 55
+  max_state_dim: 55
+  chunk_size: 50
+  lr: 1.0e-4
+  lr_min: 5.0e-5
+  lr_decay_style: cosine
+  optimizer: adamw
+  num_train_epochs: 29000
+  micro_batch_size: 1
+  gradient_accumulation_steps: 1
+  global_batch_size: 1
+  max_steps: 100
+  ckpt_manager: dcp
+  save_steps: 100
+  save_epochs: 29000
+  enable_fp32: false
+  enable_mixed_precision: true
+  enable_resume: false
+  # Empty = no depth/video teachers (recommended for LoRA / low VRAM).
+  # Full-SFT with teachers is injected by scripts/train_robotwin_cuda.sh.
+  align_params: {}
+  # LoRA defaults; launcher sets use_lora=false for full mode.
+  use_lora: true
+  lora_rank: 8
+  lora_alpha: 16
+  lora_scope: action_expert
+  lora_target_modules: q_proj,k_proj,v_proj,o_proj
