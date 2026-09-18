@@ -54,3 +54,7 @@ Batch rule:
 ```text
 global_batch_size = micro_batch_size × num_gpus × gradient_accumulation_steps
 ```
+
+## Risks / caveats
+
+See [`lora_readme.md`](./lora_readme.md) for known footguns (merge rank/alpha, frozen action heads, `all_attention` VRAM, PEFT HF export, `post_training`, data placeholders, etc.).
